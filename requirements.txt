@@ -1,0 +1,32 @@
+# Web framework
+fastapi==0.111.0
+uvicorn[standard]==0.30.1
+
+# HTTP client (async)
+httpx==0.27.0
+
+# RSS parsing
+feedparser==6.0.11
+
+# LLM clients
+anthropic==0.28.0
+openai==1.35.0
+
+# Data validation
+pydantic==2.7.4
+pydantic-settings==2.3.1
+
+# Database (caching)
+sqlmodel==0.0.19
+
+# Async utilities
+anyio==4.4.0
+
+# Testing
+pytest==8.2.2
+pytest-asyncio==0.23.7
+respx==0.21.1          # mock httpx in tests
+
+# Dev
+ruff==0.4.10           # linting
+mypy==1.10.1           # type checking

@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PressLens — Media Bias Analyzer</title>
+  <meta name="description" content="Compare how the world's press covers the same story. Powered by Claude or OpenAI."/>
+  <link rel="icon" type="image/svg+xml" href="/logo.svg"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=Inter:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --ink:#1c1c1a;--muted:#6b6b6b;--hint:#aaa;
+      --border:#e5e2da;--border-md:#ccc;
+      --surface:#f2f2f2;--white:#fff;
+    }
+    body{font-family:'Inter',system-ui,sans-serif;background:#efefef;color:var(--ink);min-height:100vh}
+    .app{max-width:1000px;margin:0 auto;padding:2rem 1.25rem 5rem}
+
+    /* ── Header ── */
+    .header{display:flex;align-items:center;gap:16px;padding-bottom:22px;border-bottom:1px solid var(--border);margin-bottom:22px}
+    .logo-wrap{display:flex;align-items:center;gap:13px}
+    .logo-text{font-family:'Source Serif 4',Georgia,serif;font-size:30px;font-weight:600;color:var(--ink);letter-spacing:-.5px;line-height:1}
+    .tagline{font-size:14px;color:var(--muted);border-left:1px solid var(--border);padding-left:14px;margin-left:2px}
+
+    /* ── Demo bar ── */
+    .demo-bar{border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin-bottom:18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--white)}
+    .demo-bar-text{font-size:14px;color:var(--muted);flex:1;min-width:160px}
+    .demo-bar-text strong{color:var(--ink);font-weight:500}
+    .demo-pills{display:flex;gap:7px;flex-wrap:wrap}
+    .dpill{font-size:13px;padding:5px 14px;border-radius:20px;border:1px solid var(--border-md);color:var(--muted);background:transparent;cursor:pointer;font-family:'Inter',sans-serif;transition:all .12s}
+    .dpill:hover{border-color:var(--ink);color:var(--ink)}
+    .dpill.active{background:#3a3a3a;color:var(--white);border-color:#3a3a3a;font-weight:500}
+
+    /* Sample topic pills */
+    .sample-topics{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:0;margin-top:-4px}
+    .stopic{font-size:13px;padding:6px 14px;border-radius:100px;border:none;background:var(--surface);color:var(--muted);cursor:pointer;font-family:'Inter',sans-serif;transition:all .12s;white-space:nowrap}
+    .stopic:hover{background:var(--border);color:var(--ink)}
+
+    /* ── Config grid ── */
+    .cfg{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,2.2fr) minmax(0,1fr);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:18px;background:var(--white)}
+    .cpanel{padding:1.4rem 1.6rem;border-right:1px solid var(--border)}
+    .cpanel:last-child{border-right:none}
+    .lbl{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:12px}
+
+    .prow{display:flex;gap:6px;margin-bottom:12px}
+    .pbtn{flex:1;padding:7px 8px;border-radius:7px;border:1px solid var(--border-md);background:transparent;font-family:'Inter',sans-serif;font-size:13px;color:var(--muted);cursor:pointer;transition:all .12s}
+    .pbtn.active{background:#3a3a3a;color:var(--white);border-color:#3a3a3a;font-weight:500}
+
+    .key-in{width:100%;padding:8px 11px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--ink);font-size:12px;font-family:'Courier New',monospace}
+    .key-in:focus{outline:none;border-color:var(--ink)}
+    .key-in.valid{border-color:#166534;background:#f0fdf4}
+    .key-in.invalid{border-color:#991b1b;background:#fef2f2}
+    .priv{font-size:11px;color:var(--hint);margin-top:6px}
+
+    .topic-in{width:100%;padding:9px 0;border:none;border-bottom:1px solid var(--border);background:transparent;color:var(--ink);font-family:'Source Serif 4',Georgia,serif;font-size:17px;margin-bottom:16px}
+    .topic-in:focus{outline:none;border-bottom-color:var(--ink)}
+    .topic-in::placeholder{color:var(--hint);font-style:italic}
+
+    .ochips{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+    .ochip{font-size:13px;padding:7px 15px;border-radius:100px;border:none;background:var(--surface);color:var(--muted);cursor:pointer;transition:all .12s;display:flex;align-items:center;gap:6px;font-family:'Inter',sans-serif;white-space:nowrap}
+    .ochip:hover{background:var(--border);color:var(--ink)}
+    .ochip.sel{background:#3a3a3a;color:var(--white);font-weight:500}
+    .ochip.sel .odot{opacity:1}
+    .ochip.sel .occ{opacity:.6}
+    .odot{width:7px;height:7px;border-radius:50%;flex-shrink:0;opacity:.45}
+    .occ{font-size:11px;font-weight:600;letter-spacing:.04em;opacity:.45}
+
+    .tbtns{display:flex;gap:7px}
+    .tbtn{font-size:13px;padding:6px 15px;border-radius:100px;border:none;background:var(--surface);color:var(--muted);cursor:pointer;font-family:'Inter',sans-serif;transition:all .12s}
+    .tbtn:hover{background:var(--border);color:var(--ink)}
+    .tbtn.active{background:#3a3a3a;color:var(--white);font-weight:500}
+
+    .abtn{width:100%;padding:10px 14px;border-radius:7px;border:1px solid var(--border-md);background:transparent;font-family:'Inter',sans-serif;font-size:14px;color:var(--ink);cursor:pointer;margin-bottom:9px;display:flex;align-items:center;gap:9px;transition:background .12s}
+    .abtn:hover:not(:disabled){background:var(--surface)}
+    .abtn.primary{background:#1c1c1a;color:var(--white);border-color:#1c1c1a;font-weight:700;font-size:15px;letter-spacing:.08em;padding:13px 14px}
+    .abtn.primary:hover:not(:disabled){opacity:.87}
+    .abtn:disabled{opacity:.35;cursor:not-allowed}
+
+    .status-txt{font-size:12px;color:var(--muted);min-height:18px;margin-top:3px;font-style:italic}
+    .spin{display:inline-block;width:11px;height:11px;border:1.5px solid var(--border-md);border-top-color:var(--ink);border-radius:50%;animation:sp .7s linear infinite;margin-right:5px;vertical-align:-2px}
+    @keyframes sp{to{transform:rotate(360deg)}}
+    .err{color:#a32d2d}
+
+    /* ── Demo badge ── */
+    .demo-badge{display:inline-flex;align-items:center;font-size:11px;font-weight:500;padding:2px 9px;border-radius:20px;background:var(--surface);color:var(--muted);border:1px solid var(--border);margin-left:10px;vertical-align:middle;letter-spacing:.03em}
+
+    /* ── Results ── */
+    .rgrid{display:grid;grid-template-columns:1fr;border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px;background:var(--white)}
+    .rhalf{padding:1.25rem 1.4rem;border-right:none;border-bottom:1px solid var(--border)}
+    .rhalf:last-child{border-bottom:none}
+    .spider-row{display:flex;align-items:flex-start;gap:20px}
+
+    .legend{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
+    .leg-item{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);cursor:pointer;padding:4px 0;transition:opacity .15s;user-select:none;font-family:'Inter',sans-serif;border:none;background:none}
+    .leg-item.muted{opacity:.22}
+
+    /* ── Table ── */
+    .pl-table{width:100%;border-collapse:collapse;font-size:14px;table-layout:fixed}
+    .pl-table th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--hint);padding:8px 10px;text-align:left;border-bottom:1px solid var(--border)}
+    .pl-table td{padding:15px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+    .pl-table tr:last-child td{border-bottom:none}
+    .pl-table tr:hover td{background:var(--surface)}
+    .o-name{font-family:'Source Serif 4',Georgia,serif;font-size:16px;font-weight:700;color:var(--ink)}
+    .o-meta{font-size:11px;color:var(--hint);margin-top:1px}
+    .pill{display:inline-block;font-size:12px;padding:4px 11px;border-radius:20px;font-weight:500;white-space:nowrap;border:1px solid transparent}
+    .angle{font-size:13px;color:var(--muted);line-height:1.6}
+
+    /* ── Synthesis ── */
+    .sw{border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--white);margin-bottom:16px;border-top:3px solid var(--ink)}
+    .sw-head{padding:14px 1.6rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;background:var(--white)}
+    .sw-title{font-family:'Source Serif 4',Georgia,serif;font-size:18px;font-weight:700;color:var(--ink)}
+    .sw-sub{font-size:13px;color:var(--hint);font-style:italic;margin-left:6px}
+    .sw-body{padding:1.6rem 1.8rem}
+    .sw-summary{font-family:'Source Serif 4',Georgia,serif;font-size:16px;line-height:1.9;color:var(--ink);margin-bottom:1.2rem}
+    .sw-bullets{list-style:none;padding:0;margin:0 0 1.2rem 0}
+    .sw-bullets li{font-size:14px;color:var(--muted);padding:7px 0;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:10px;line-height:1.6}
+    .sw-bullets li:last-child{border-bottom:none}
+    .sw-bullet-dot{width:6px;height:6px;border-radius:50%;background:var(--ink);flex-shrink:0;margin-top:7px}
+    .sw-diverge{font-size:14px;color:var(--muted);padding:12px 16px;border-left:3px solid var(--ink);font-style:italic;line-height:1.7;border-radius:0;margin-top:4px}
+
+    @media(max-width:700px){
+      .cfg{grid-template-columns:1fr}
+      .cpanel{border-right:none;border-bottom:1px solid var(--border)}
+      .cpanel:last-child{border-bottom:none}
+      .rgrid{grid-template-columns:1fr}
+      .rhalf{border-right:none;border-bottom:1px solid var(--border)}
+      .rhalf:last-child{border-bottom:none}
+      .tagline{display:none}
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <div class="header">
+    <div class="logo-wrap">
+      <svg width="44" height="44" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <polygon points="32,6 58,52 6,52" fill="#f0ede6" stroke="none"/>
+        <polygon points="32,6 58,52 44,52" fill="#ddd9d0" stroke="none"/>
+        <polygon points="32,6 44,52 32,52" fill="#c8c4bb" stroke="none"/>
+        <line x1="32" y1="6" x2="20" y2="52" stroke="#1c1c1a" stroke-width="1" stroke-opacity="0.3"/>
+        <line x1="32" y1="6" x2="44" y2="52" stroke="#1c1c1a" stroke-width="1.2" stroke-opacity="0.6"/>
+        <polygon points="32,6 58,52 6,52" fill="none" stroke="#1c1c1a" stroke-width="2" stroke-linejoin="round"/>
+        <line x1="6" y1="52" x2="58" y2="52" stroke="#1c1c1a" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="32" cy="6" r="3" fill="#1c1c1a"/>
+        <circle cx="58" cy="52" r="3" fill="#1c1c1a"/>
+        <circle cx="6" cy="52" r="3" fill="#1c1c1a"/>
+      </svg>
+      <div>
+        <div class="logo-text">PressLens</div>
+        <div style="font-size:12px;color:var(--muted);font-style:italic;margin-top:3px">by <a href="https://medium.com/@luzhenna" target="_blank" style="color:var(--muted);text-decoration:none;border-bottom:1px solid var(--border-md)">Medium</a> · <a href="https://www.linkedin.com/in/zhenna-lu/" target="_blank" style="color:var(--muted);text-decoration:none;border-bottom:1px solid var(--border-md)">LinkedIn</a></div>
+      </div>
+    </div>
+    <span class="tagline">Compare how the world's press covers the same story</span>
+  </div>
+
+  <div class="demo-bar" id="demo-bar">
+    <div class="demo-bar-text"><strong>No API key?</strong> Try a pre-analyzed topic instantly:</div>
+    <div class="demo-pills" id="demo-pills"></div>
+  </div>
+
+  <div class="cfg">
+    <div class="cpanel">
+      <div class="lbl">API provider</div>
+      <div class="prow">
+        <button class="pbtn active" id="btn-claude" onclick="setProvider('claude')">Claude</button>
+        <button class="pbtn" id="btn-openai" onclick="setProvider('openai')">OpenAI</button>
+      </div>
+      <input class="key-in" type="password" id="api-key" placeholder="sk-ant-..." oninput="saveKey()"/>
+      <div id="key-status" style="font-size:11px;margin-top:5px;min-height:16px"></div>
+      <div class="priv">Your key stays in your browser — never stored</div>
+    </div>
+
+    <div class="cpanel">
+      <div class="lbl">Topic — any language</div>
+      <input class="topic-in" type="text" id="topic" placeholder="Iran nuclear deal · AI replacing jobs · Taiwan strait…"/>
+      <div class="sample-topics" id="sample-topics"></div>
+      <div class="lbl" style="margin-top:14px">Outlets</div>
+      <div class="ochips" id="outlet-grid"></div>
+      <div class="lbl" style="margin-top:9px">Time range</div>
+      <div class="tbtns" id="time-row"></div>
+    </div>
+
+    <div class="cpanel" style="display:flex;flex-direction:column;justify-content:center">
+      <div class="lbl">Run</div>
+      <button class="abtn primary" id="analyze-btn" onclick="analyze()">ANALYZE BIAS</button>
+      <div class="status-txt" id="status"></div>
+    </div>
+  </div>
+
+  <div id="results-section" style="display:none">
+    <div style="display:flex;align-items:center;margin-bottom:14px">
+      <span style="font-family:'Source Serif 4',Georgia,serif;font-size:20px;font-weight:600;color:var(--ink)" id="results-topic"></span>
+      <span class="demo-badge" id="demo-badge" style="display:none">Demo</span>
+    </div>
+
+    <!-- Spider row: legend left, chart right, no divider -->
+    <div style="border:1px solid var(--border);border-radius:12px 12px 0 0;overflow:hidden;background:var(--white);border-bottom:none;padding:1.25rem 1.4rem">
+      <div class="lbl" id="lbl-spider">Bias dimensions</div>
+      <div style="display:grid;grid-template-columns:180px 1fr;gap:0;align-items:center">
+        <div class="legend" id="legend"></div>
+        <svg id="spider-svg" viewBox="0 0 1200 960" width="100%" role="img" aria-label="Superimposed spider chart comparing bias dimensions across outlets"></svg>
+      </div>
+    </div>
+    <!-- Coverage summary: full width below -->
+    <div style="border:1px solid var(--border);border-radius:0 0 12px 12px;overflow:hidden;background:var(--white);margin-bottom:16px">
+      <div style="padding:1.25rem 1.4rem">
+        <div class="lbl" id="lbl-coverage">Coverage summary</div>
+        <div style="overflow-x:auto">
+          <table class="pl-table">
+            <colgroup>
+              <col style="width:4%"><col style="width:22%"><col style="width:17%"><col style="width:11%"><col style="width:12%"><col style="width:34%">
+            </colgroup>
+            <thead><tr><th></th><th>Outlet</th><th>Sentiment</th><th>Overall</th><th>Bias level</th><th>Angle</th></tr></thead>
+            <tbody id="table-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="sw" id="synth-section" style="display:none">
+      <div class="sw-head">
+        <svg width="18" height="18" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+          <polygon points="32,6 58,52 6,52" fill="#e8e4dc" stroke="none"/>
+          <polygon points="32,6 44,52 32,52" fill="#c8c4bb" stroke="none"/>
+          <line x1="32" y1="6" x2="44" y2="52" stroke="#1c1c1a" stroke-width="1.5" stroke-opacity="0.5"/>
+          <polygon points="32,6 58,52 6,52" fill="none" stroke="#1c1c1a" stroke-width="2.5" stroke-linejoin="round"/>
+        </svg>
+        <span class="sw-title">Neutral synthesis</span>
+        <span class="sw-sub">What the facts agree on</span>
+      </div>
+      <div class="sw-body">
+        <p class="sw-summary" id="synth-text"></p>
+        <ul class="sw-bullets" id="synth-facts"></ul>
+        <div class="sw-diverge" id="synth-div"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+<script>
+const OUTLETS=[
+  {id:'nyt',      name:'NY Times',    cc:'US',  lean:'center-left', color:'#E24B4A'},
+  {id:'fox',      name:'Fox News',    cc:'US',  lean:'right',        color:'#2563EB'},
+  {id:'bbc',      name:'BBC',         cc:'GB',  lean:'center',       color:'#0F6E56'},
+  {id:'guardian', name:'The Guardian',cc:'GB',  lean:'left',         color:'#B45309'},
+  {id:'aljazeera',name:'Al Jazeera',  cc:'QA',  lean:'state',        color:'#7C3AED'},
+  {id:'rt',       name:'RT',          cc:'RU',  lean:'state',        color:'#D85A30'},
+  {id:'cgtn',     name:'CGTN',        cc:'CN',  lean:'state',        color:'#BE185D'},
+  {id:'lemonde',  name:'Le Monde',    cc:'FR',  lean:'center-left',  color:'#0D9488'},
+  {id:'spiegel',  name:'Der Spiegel', cc:'DE',  lean:'center-left',  color:'#6366F1'},
+  {id:'reuters',  name:'Reuters',     cc:'INT', lean:'center',       color:'#6B7280'},
+  {id:'ndtv',     name:'NDTV',        cc:'IN',  lean:'center',       color:'#65A30D'},
+  {id:'telesur',  name:'Telesur',     cc:'VE',  lean:'left',         color:'#9F1239'},
+];
+
+const SAMPLE_TOPICS = [
+  'AI Replacing Jobs',
+  'Gaza Ceasefire',
+  'Iran US Conflict',
+  'Taiwan Strait Tensions',
+  'Ukraine Russia War',
+  'Climate Change Policy',
+  'China Tech Crackdown',
+  '中美贸易战',
+  'Immigration Crisis Europe',
+  'Nuclear Energy Comeback',
+];
+const DIMS=['Emotional\ntone','Framing &\nangle','Source\ndiversity','Loaded\nlanguage','Political\nstance','Factual\ndensity'];
+const SENT_STYLE={
+  'Critical':    'background:#FEF2F2;color:#991B1B;border-color:#FECACA',
+  'Measured':    'background:#F0FDF4;color:#166534;border-color:#BBF7D0',
+  'Neutral':     'background:#F9FAFB;color:#374151;border-color:#E5E7EB',
+  'Pro-West':    'background:#EFF6FF;color:#1E40AF;border-color:#BFDBFE',
+  'Pro-East':    'background:#FFFBEB;color:#92400E;border-color:#FDE68A',
+  'Alarmist':    'background:#FEF2F2;color:#991B1B;border-color:#FECACA',
+  'Hostile':     'background:#FFF7ED;color:#9A3412;border-color:#FED7AA',
+  'Nationalist': 'background:#FDF4FF;color:#6B21A8;border-color:#E9D5FF',
+  'Sympathetic': 'background:#ECFDF5;color:#065F46;border-color:#A7F3D0',
+  'Defensive':   'background:#FFFBEB;color:#92400E;border-color:#FDE68A',
+};
+function scoreColor(s){return s<=3?'#166534':s<=6?'#92400E':'#991B1B';}
+function levelLabel(s){return s<=3?'Low':s<=6?'Moderate':'High';}
+function levelStyle(s){
+  if(s<=3)return 'background:#F0FDF4;color:#166534;border-color:#BBF7D0';
+  if(s<=6)return 'background:#FFFBEB;color:#92400E;border-color:#FDE68A';
+  return 'background:#FEF2F2;color:#991B1B;border-color:#FECACA';
+}
+
+let provider='claude',selectedOutlets=new Set(['nyt','fox','bbc','aljazeera','reuters','guardian']),timeRange=7;
+let analysisResults=[],hiddenOutlets=new Set();
+
+function setProvider(p){
+  provider=p;
+  document.getElementById('btn-claude').classList.toggle('active',p==='claude');
+  document.getElementById('btn-openai').classList.toggle('active',p==='openai');
+  const kv=localStorage.getItem('pl_key_'+p)||'';
+  document.getElementById('api-key').value=kv;
+  document.getElementById('api-key').placeholder=p==='claude'?'sk-ant-...':'sk-...';
+  validateKeyFormat(kv);
+}
+function saveKey(){
+  const val=document.getElementById('api-key').value;
+  localStorage.setItem('pl_key_'+provider,val);
+  validateKeyFormat(val);
+}
+function validateKeyFormat(val){
+  const el=document.getElementById('api-key');
+  const st=document.getElementById('key-status');
+  if(!val){el.className='key-in';st.innerHTML='';return;}
+  const claudeOk=provider==='claude'&&val.startsWith('sk-ant-');
+  const openaiOk=provider==='openai'&&val.startsWith('sk-');
+  if(claudeOk||openaiOk){
+    el.className='key-in valid';
+    st.innerHTML='<span style="color:#166534">&#10003; Key format looks valid</span>';
+  } else {
+    el.className='key-in invalid';
+    const hint=provider==='claude'?'Claude keys start with sk-ant-':'OpenAI keys start with sk-';
+    st.innerHTML='<span style="color:#991b1b">&#9888; '+hint+'</span>';
+  }
+}
+function renderOutlets(){
+  document.getElementById('outlet-grid').innerHTML=OUTLETS.map(o=>
+    `<span class="ochip ${selectedOutlets.has(o.id)?'sel':''}" onclick="toggleOutlet('${o.id}')"><span class="odot" style="background:${o.color}"></span>${o.name}<span class="occ">${o.cc}</span></span>`
+  ).join('');
+}
+
+function renderSampleTopics(){
+  const el=document.getElementById('sample-topics');
+  if(!el)return;
+  el.innerHTML=SAMPLE_TOPICS.map(t=>
+    `<button class="stopic" onclick="setTopic('${t.replace(/'/g,"\'")}')">${t}</button>`
+  ).join('');
+}
+
+function setTopic(t){
+  document.getElementById('topic').value=t;
+}
+function toTitleCase(str){
+  return str.replace(/\w\S*/g,w=>w.charAt(0).toUpperCase()+w.slice(1));
+}
+function toggleOutlet(id){
+  if(selectedOutlets.has(id)){if(selectedOutlets.size>2)selectedOutlets.delete(id);}else selectedOutlets.add(id);
+  renderOutlets();
+}
+function renderTimeRow(){
+  document.getElementById('time-row').innerHTML=[[1,'24h'],[7,'7 days'],[30,'30 days']].map(([v,l])=>
+    `<button class="tbtn ${timeRange===v?'active':''}" onclick="setTime(${v})">${l}</button>`).join('');
+}
+function setTime(v){timeRange=v;renderTimeRow();}
+function setStatus(msg,loading=false){
+  const el=document.getElementById('status');
+  if(!msg){el.innerHTML='';return;}
+  if(loading){
+    el.innerHTML='<div style="display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);font-style:italic;margin-top:4px"><span class="spin"></span>'+msg+'</div>';
+  } else {
+    el.innerHTML='<div style="font-size:12px;margin-top:4px">'+msg+'</div>';
+  }
+}
+
+async function loadDemoTopics(){
+  try{
+    const res=await fetch('/api/demo/topics');
+    const topics=await res.json();
+    document.getElementById('demo-pills').innerHTML=topics.map(t=>
+      `<button class="dpill" onclick="loadDemo('${t}')">${t}</button>`).join('');
+  }catch(e){document.getElementById('demo-bar').style.display='none';}
+}
+async function loadDemo(topic){
+  document.querySelectorAll('.dpill').forEach(p=>p.classList.toggle('active',p.textContent===topic));
+  document.getElementById('topic').value=topic;
+  document.getElementById('analyze-btn').disabled=true;
+  setStatus('Loading demo...',true);
+  try{
+    const res=await fetch('/api/demo/'+encodeURIComponent(topic.toLowerCase()));
+    if(!res.ok)throw new Error('Not found');
+    const data=await res.json();
+    renderResults(data,true);
+    if(data.synthesis)renderSynthesis(data.synthesis);
+    setStatus('');
+  }catch(e){setStatus('<span class="err">Could not load demo.</span>');}
+  document.getElementById('analyze-btn').disabled=false;
+}
+
+async function callClaude(key,sys,user){
+  const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',
+    headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:1000,system:sys,messages:[{role:'user',content:user}]})});
+  if(!res.ok){
+    const e=await res.json();
+    const msg=e.error?.message||'Claude error';
+    if(res.status===401)throw new Error('Invalid Claude API key. Check it starts with sk-ant-');
+    if(res.status===429)throw new Error('Claude rate limit hit. Wait a moment and retry.');
+    if(res.status===402||res.status===529)throw new Error('Claude account error. Check your Anthropic console.');
+    throw new Error(msg);
+  }
+  const d=await res.json();return d.content.map(b=>b.text||'').join('');
+}
+async function callOpenAI(key,sys,user){
+  const res=await fetch('https://api.openai.com/v1/chat/completions',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+    body:JSON.stringify({model:'gpt-4o-mini',max_tokens:1000,messages:[{role:'system',content:sys},{role:'user',content:user}]})
+  });
+  if(!res.ok){
+    const e=await res.json();
+    const msg=e.error?.message||'OpenAI error';
+    // Surface common errors clearly
+    if(res.status===401)throw new Error('Invalid OpenAI API key. Check it starts with sk-');
+    if(res.status===429)throw new Error('OpenAI rate limit hit. Wait a moment and retry.');
+    if(res.status===402)throw new Error('OpenAI account has no credits. Add billing at platform.openai.com');
+    throw new Error(msg);
+  }
+  const d=await res.json();return d.choices[0].message.content;
+}
+async function callLLM(sys,user){
+  const key=document.getElementById('api-key').value.trim();
+  return provider==='claude'?callClaude(key,sys,user):callOpenAI(key,sys,user);
+}
+function parseJSON(raw){return JSON.parse(raw.replace(/```json|```/g,'').trim());}
+
+const BIAS_SYS=`You are a media bias analyst. Respond ONLY with valid JSON, no markdown.
+{"emotional_tone":<1-10>,"framing":<1-10>,"source_selection":<1-10>,"loaded_language":<1-10>,"political_stance":<1-10>,"factual_density":<1-10>,"overall":<1-10>,"sentiment":"<Pro-West|Pro-East|Alarmist|Measured|Sympathetic|Hostile|Nationalist|Neutral|Critical|Defensive>","sentiment_target":"<who/what>","verdict":"<one sentence>","key_phrases":["<p1>","<p2>","<p3>"]}
+Scores: 1-10 where for emotional_tone/framing/loaded_language/political_stance: 1=neutral/centrist, 10=extreme. For source_selection: 1=diverse, 10=one-sided. For factual_density: 1=mostly opinion, 10=highly factual. Topic may be any language; respond in English.`;
+const SYNTH_SYS=`You are a neutral senior wire journalist synthesising media coverage. Respond ONLY with valid JSON, no markdown.
+{"synthesis":"<A single coherent 3-4 sentence paragraph summarising what all outlets agree on, written in neutral factual prose>","consensus_facts":["<Short bullet: specific agreed fact 1>","<Short bullet: specific agreed fact 2>","<Short bullet: specific agreed fact 3>"],"key_divergence":"<One sentence on the sharpest disagreement between outlets in framing or attribution>"}`;
+
+async function analyze(){
+  const key=document.getElementById('api-key').value.trim();
+  const topic=document.getElementById('topic').value.trim();
+  if(!key){setStatus('<span class="err">Enter your API key — or try a demo topic above.</span>');return;}
+  if(!topic){setStatus('<span class="err">Enter a topic to analyze.</span>');return;}
+  document.getElementById('analyze-btn').disabled=true;
+  document.getElementById('results-section').style.display='none';
+  document.getElementById('synth-section').style.display='none';
+  analysisResults=[];hiddenOutlets=new Set();
+  document.querySelectorAll('.dpill').forEach(p=>p.classList.remove('active'));
+  const outlets=OUTLETS.filter(o=>selectedOutlets.has(o.id));
+  const raw=[];
+  for(let i=0;i<outlets.length;i++){
+    const o=outlets[i];
+    setStatus('Analyzing <strong>'+o.name+'</strong> — '+( i+1)+' of '+outlets.length+' outlets',true);
+    try{
+      const r=await callLLM(BIAS_SYS,'Topic: "'+topic+'"\nOutlet: '+o.name+' ('+(o.cc||o.region||'')+', lean: '+o.lean+')\nTime range: last '+timeRange+' days');
+      raw.push({outlet:o,scores:parseJSON(r),color:o.color});
+    }catch(e){raw.push({outlet:o,scores:null,error:e.message,color:o.color});}
+  }
+  const failed=raw.filter(r=>r.error);
+  if(failed.length===raw.length){setStatus('<span class="err">&#9888; All requests failed. Check your API key and try again.</span>');document.getElementById('analyze-btn').disabled=false;return;}
+  setStatus('');
+  analysisResults=raw;
+  renderResults({topic,results:raw.map(r=>({outlet:r.outlet,scores:r.scores,article_count:0})),synthesis:null},false);
+  document.getElementById('analyze-btn').disabled=false;
+  synthesize();
+}
+
+async function synthesize(){
+  if(!analysisResults.length)return;
+  setStatus('Writing neutral summary...',true);
+  const topic=document.getElementById('topic').value.trim();
+  const summaries=analysisResults.filter(r=>r.scores).map(r=>
+    r.outlet.name+': overall '+r.scores.overall+'/10, sentiment: '+r.scores.sentiment+' toward '+r.scores.sentiment_target+'. '+r.scores.verdict).join('\n');
+  try{
+    const r=await callLLM(SYNTH_SYS,'Topic: "'+topic+'"\n\n'+summaries);
+    renderSynthesis(parseJSON(r));
+  }catch(e){setStatus('<span class="err">Synthesis failed.</span>');}
+  setStatus('');
+}
+
+function renderResults(data,demo){
+  const valid=data.results.filter(r=>r.scores);
+  if(!valid.length)return;
+  document.getElementById('results-topic').textContent='"'+data.topic+'"';
+  document.getElementById('lbl-spider').textContent='Bias dimensions — '+data.topic;
+  document.getElementById('lbl-coverage').textContent='Coverage summary — '+data.topic;
+  document.getElementById('demo-badge').style.display=demo?'inline-flex':'none';
+  const enriched=valid.map(r=>({...r,color:OUTLETS.find(x=>x.id===r.outlet.id)?.color||'#888'}));
+  analysisResults=enriched;
+  document.getElementById('table-body').innerHTML=[...enriched].sort((a,b)=>b.scores.overall-a.scores.overall).map(r=>`
+    <tr>
+      <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${r.color}"></span></td>
+      <td><div class="o-name">${r.outlet.name} <span style='font-size:11px;font-weight:600;color:var(--hint);letter-spacing:.04em'>${r.outlet.cc||r.outlet.region||''}</span></div></td>
+      <td><span class="pill" style="${SENT_STYLE[r.scores.sentiment]||'background:#F9FAFB;color:#374151;border-color:#E5E7EB'}">${r.scores.sentiment}</span></td>
+      <td><span style="font-size:16px;font-family:'Source Serif 4',Georgia,serif;font-weight:600;color:${scoreColor(r.scores.overall)}">${r.scores.overall}/10</span></td>
+      <td><span class="pill" style="${levelStyle(r.scores.overall)}">${levelLabel(r.scores.overall)}</span></td>
+      <td class="angle">${r.scores.verdict}</td>
+    </tr>`).join('');
+  buildLegend(enriched);drawSpider(enriched);
+  document.getElementById('results-section').style.display='block';
+  if(data.synthesis)renderSynthesis(data.synthesis);
+}
+
+function renderSynthesis(s){
+  document.getElementById('synth-text').textContent=s.synthesis;
+  document.getElementById('synth-facts').innerHTML=(s.consensus_facts||[]).map(f=>`<li><span class="sw-bullet-dot"></span><span>${f}</span></li>`).join('');
+  document.getElementById('synth-div').textContent=s.key_divergence?'Where outlets diverge: '+s.key_divergence:'';
+  document.getElementById('synth-section').style.display='block';
+}
+
+function buildLegend(valid){
+  hiddenOutlets=new Set();
+  document.getElementById('legend').innerHTML=valid.map((r,i)=>
+    `<span class="leg-item" id="leg-${i}" onclick="toggleSpider(${i})"><span style="width:8px;height:8px;border-radius:50%;background:${r.color};display:inline-block"></span>${r.outlet.name}</span>`
+  ).join('');
+}
+function toggleSpider(i){
+  if(hiddenOutlets.has(i))hiddenOutlets.delete(i);else hiddenOutlets.add(i);
+  document.getElementById('leg-'+i).classList.toggle('muted',hiddenOutlets.has(i));
+  drawSpider(analysisResults.filter(r=>r.scores));
+}
+
+function pt(cx,cy,r,i,n,frac){const a=(Math.PI*2*i/n)-Math.PI/2;return{x:cx+r*frac*Math.cos(a),y:cy+r*frac*Math.sin(a)};}
+function drawSpider(valid){
+  const CX=600,CY=480,R=260,N=6;let html='';
+  [.25,.5,.75,1].forEach((f,gi)=>{
+    const pts=Array.from({length:N},(_,i)=>pt(CX,CY,R,i,N,f));
+    const d=pts.map((p,i)=>(i===0?'M':'L')+p.x.toFixed(1)+' '+p.y.toFixed(1)).join(' ')+' Z';
+    html+=`<path d="${d}" fill="none" stroke="${gi===3?'#ccc':'#e5e2da'}" stroke-width="${gi===3?.8:.4}" stroke-dasharray="${gi<3?'3,3':'none'}"/>`;
+    if(gi>0){const lp=pt(CX,CY,R,1,N,f);html+=`<text x="${(lp.x+3).toFixed(1)}" y="${(lp.y+3).toFixed(1)}" font-size="18" fill="#aaa" font-family="Inter,sans-serif">${Math.round(f*10)}</text>`;}
+  });
+  Array.from({length:N},(_,i)=>{
+    const ep=pt(CX,CY,R,i,N,1);
+    html+=`<line x1="${CX}" y1="${CY}" x2="${ep.x.toFixed(1)}" y2="${ep.y.toFixed(1)}" stroke="#e5e2da" stroke-width=".4"/>`;
+    const lp=pt(CX,CY,R+60,i,N,1);const a=(Math.PI*2*i/N)-Math.PI/2;
+    const anchor=Math.cos(a)>.1?'start':Math.cos(a)<-.1?'end':'middle';
+    const dy=Math.sin(a)>.1?13:Math.sin(a)<-.1?-4:5;
+    const parts=DIMS[i].split('\n');
+    if(parts.length===1){
+      html+=`<text x="${lp.x.toFixed(1)}" y="${(lp.y+dy).toFixed(1)}" text-anchor="${anchor}" font-size="20" font-weight="600" fill="#3a3a3a" font-family="Inter,sans-serif">${parts[0]}</text>`;
+    } else {
+      const lineH=15;
+      const y0=(lp.y+dy-(lineH/2)).toFixed(1);
+      html+=`<text text-anchor="${anchor}" font-size="20" font-weight="600" fill="#3a3a3a" font-family="Inter,sans-serif">`;
+      const lineH2=22;parts.forEach((p,pi)=>{ html+=`<tspan x="${lp.x.toFixed(1)}" dy="${pi===0?y0+'px':lineH2+'px'}">${p}</tspan>`; });
+      html+=`</text>`;
+    }
+  });
+  [...valid].sort((a,b)=>b.scores.overall-a.scores.overall).forEach(r=>{
+    if(hiddenOutlets.has(valid.indexOf(r)))return;
+    const vals=[r.scores.emotional_tone,r.scores.framing,r.scores.source_selection,r.scores.loaded_language,r.scores.political_stance||5,r.scores.factual_density||5];
+    const pts=vals.map((v,i)=>pt(CX,CY,R,i,N,v/10));
+    const d=pts.map((p,i)=>(i===0?'M':'L')+p.x.toFixed(1)+' '+p.y.toFixed(1)).join(' ')+' Z';
+    html+=`<path d="${d}" fill="${r.color}12" stroke="${r.color}" stroke-width="1.5" stroke-linejoin="round" opacity="0.55"/>` ;
+    pts.forEach(p=>{html+=`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="5" fill="${r.color}" stroke="white" stroke-width="2" opacity="0.7"/>`;});
+  });
+  html+=`<circle cx="${CX}" cy="${CY}" r="2" fill="#ccc"/>`;
+  document.getElementById('spider-svg').innerHTML=html;
+}
+
+setProvider('claude');renderOutlets();renderSampleTopics();renderTimeRow();loadDemoTopics();
+document.getElementById('topic').addEventListener('keydown',e=>{if(e.key==='Enter')analyze();});
+</script>
+</body>
+</html>
