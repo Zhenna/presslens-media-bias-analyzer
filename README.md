@@ -4,6 +4,8 @@
 
 Every outlet tells a different story. PressLens takes any news topic, pulls coverage from major global press across regions and languages, and uses large language models to score each outlet on emotional tone, framing, source selection, and loaded language. The result: a side-by-side bias comparison table, a superimposed spider chart, and a balanced synthesis that cuts through the spin.
 
+Please [follow my blog](https://medium.com/@luzhenna) and learn how to use it. 
+
 ---
 
 ## ✨ Features
