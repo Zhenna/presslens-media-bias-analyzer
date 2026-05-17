@@ -4,6 +4,7 @@
 
 Every outlet tells a different story. PressLens takes any news topic, pulls coverage from major global press across regions and languages, and uses large language models to score each outlet on emotional tone, framing, source selection, and loaded language. The result: a side-by-side bias comparison table, a superimposed spider chart, and a balanced synthesis that cuts through the spin.
 
+Use this link to access the deployed URL: [presslens-production-3f0c.up.railway.app](https://presslens-production-3f0c.up.railway.app).
 Please [follow my blog](https://medium.com/@luzhenna) and learn how to use it. 
 
 ---
@@ -67,7 +68,7 @@ uvicorn backend.main:app --reload
 
 ---
 
-## 🚢 Deploy to Railway (free public URL)
+## 🚢 Deploy to Railway
 
 Railway gives you a live URL like `presslens-production.up.railway.app` in under 2 minutes.
 
@@ -87,7 +88,7 @@ Railway auto-detects the `Dockerfile` and deploys it. Your app is live at the UR
 
 ---
 
-## 🐳 Docker (run anywhere)
+## 🐳 Docker
 
 ```bash
 # Build
